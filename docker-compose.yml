@@ -1,0 +1,35 @@
+services:
+  selenium-standalone-chrome:
+    image: seleniarm/standalone-chromium:latest    
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+    environment:
+      - SE_VNC_NO_PASSWORD=1
+      - SE_START_XVFB=false  # Отключаем лишнее
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 10s  # Даем время на запуск
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      selenium-standalone-chrome:
+        condition: service_healthy  # Ждем пока Selenium ответит
+    environment:
+      - SELENIUM_HOST=selenium-standalone-chrome
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./test_results:/app/test_results
+    command: >
+      sh -c "
+        echo 'Waiting for Selenium to be ready...' &&
+        sleep 5 &&
+        pytest test_login.py -v -s
+      "
